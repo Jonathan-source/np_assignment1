@@ -22,11 +22,25 @@ int main(int argc, char *argv[])
 
 	initCalcLib();
 
+		// Variables regarding calculation.
+		char *randType = randomType();
+		int iRandNum[2]{0},
+			iResult = 0,
+			iCmprResult = 0;
+
+		double 	dRandNum[2] {0.0},
+			   	dResult = 0.0,
+				dCmprResult = 0.0,
+				dDelta = 0, 
+				dEpsilon = 0.0001;
+
+		bool isDouble = false;
 
 //==================================================================================================================================================
 //															T C P	S E R V E R 
 //==================================================================================================================================================
 	
+	// Server variables
 	int sockfd;
 	struct sockaddr_in serverAddr;
 
@@ -82,7 +96,7 @@ int main(int argc, char *argv[])
 //============== 3. Listen for connections using listen(). ========================
 
 	
-	if(listen(sockfd, SOMAXCONN) < 0)
+	if(listen(sockfd, 1) < 0)
 	{	
 		perror("[Server]: listen was not performed.");
 		exit(3);
@@ -95,170 +109,184 @@ int main(int argc, char *argv[])
 
 
 	clientLen = sizeof(clientAddr);
+
+	// THIS IS THE GAME-LOOP / SERVER-LOOP
+	while(1)
+	{	
+		if((connfd = accept(sockfd, (struct sockaddr *) &clientAddr, &clientLen)) < 0)
+		{
+			perror("[Server]: could not connect with the client.");
+			exit(4);
+		}
 		
-	if((connfd = accept(sockfd, (struct sockaddr *) &clientAddr, &clientLen)) < 0)
-	{
-		perror("[Server]: could not connect with the client.");
-		exit(4);
-	}
-	
-	if(send(connfd, "TEXT TCP 1.0 server.\n", 50, 0) < 0)
-	{
-		perror("[Server]: could not write to socket.");
-		exit(5);
-	}
-	printf("[Server]: client %s:%d connected, waiting for confirmation...\n", inet_ntoa(clientAddr.sin_addr), clientAddr.sin_port);
+		if(send(connfd, "TEXT TCP 1.0 server.\n", 50, 0) < 0)
+		{
+			perror("[Server]: could not write to socket.");
+			exit(5);
+		}
+		printf("[Server]: client %s:%d connected, waiting for confirmation...\n", inet_ntoa(clientAddr.sin_addr), clientAddr.sin_port);
 
-	if(recv(connfd, recvBuff, sizeof(recvBuff), 0) < 0)
-	{
-		perror("[Client]: could not read from socket.");
-		exit(3);
-	}
-	printf("[Client]: %s\n", recvBuff);
+		if(recv(connfd, recvBuff, sizeof(recvBuff), 0) < 0)
+		{
+			perror("[Client]: could not read from socket.");
+			exit(3);
+		}
+		printf("[Client]: %s\n", recvBuff);
 
 
-//==================================================================================================================================================
-//														S E N D   A N D   R E C E I V E
-//==================================================================================================================================================
+	//==================================================================================================================================================
+	//														S E N D   A N D   R E C E I V E
+	//==================================================================================================================================================
 
-	// Clear buffers.
-	memset(sendBuff, '\0', sizeof(sendBuff));
-	memset(recvBuff, '\0', sizeof(recvBuff));
+		// Clear buffers.
+		memset(sendBuff, '\0', sizeof(sendBuff));
+		memset(recvBuff, '\0', sizeof(recvBuff));
 
 
-	// Variables regarding calculator.
-	char *randType = randomType();
-	int iRandNum[2]{0},
-		iResult = 0,
+		// Reset variables.
+		randType = randomType();
+		iRandNum[2]={0};
+		iResult = 0;
 		iCmprResult = 0;
+		dRandNum[2]={0.0};
+		dResult = 0.0;
+		dCmprResult = 0.0;
+		dDelta = 0;
+		dEpsilon = 0.0001;
+		isDouble = false;
 
-	double 	dRandNum[2] {0.0},
-		   	dResult = 0.0,
-			dCmprResult = 0.0,
-			dDelta = 0, 
-			dEpsilon = 0.0001;
-
-	bool isDouble = false;
-
-	// Check if random command should execute a float or integer calculation.
-	if(randType[0] == 'f') {
-		dRandNum[0] = randomFloat();
-		dRandNum[1] = randomFloat();
-		isDouble = true;
-	} 
-	else {
-		iRandNum[0] = randomInt();
-		iRandNum[1] = randomInt();
-	}
-
-
-	// Float calculation
-	if(isDouble)
-	{
-		// Perform calculation.
-	 	dResult = calcResult(dRandNum[0], dRandNum[1], randType);
-	  	
-	  	// Print result.
- 	 	printf("[Server]: %s %8.8g %8.8g = %8.8g \n", randType, dRandNum[0], dRandNum[1], dResult);
-
- 	 	// Store calculation data in sendBuffer.
- 	 	sprintf(sendBuff, "%s %8.8g %8.8g = %8.8g \n",randType, dRandNum[0], dRandNum[1], dResult);
-  	}
-  	// Integer calculation
-  	else {
-		// Perform calculation.
-		iResult = calcResult(iRandNum[0], iRandNum[1], randType);
-
-		// Print result.
-    	printf("[Server]: %s %d %d = %d \n",randType, iRandNum[0], iRandNum[1], iResult);
-
-    	// Store calculation data in sendBuffer.
-    	sprintf(sendBuff, "%s %d %d = %d \n",randType, iRandNum[0], iRandNum[1], iResult);
-	}
-
-
-	// Send the calculation information to the client.
-	if(send(connfd, sendBuff, sizeof(sendBuff), 0) < 0)
-	{
-		perror("[Server]: could not write to socket.");
-		exit(6);
-	}
-
-	// ACK
-	if(recv(connfd, recvBuff, sizeof(recvBuff), 0) < 0)
-	{
-		perror("[Client]: could not read from socket.");
-		exit(3);
-	}
-	printf("[Client]: %s\n", recvBuff);
-	memset(recvBuff, '\0', sizeof(recvBuff));
-
-
-	// Receive calculation performed by client.
-	if(recv(connfd, recvBuff, sizeof(recvBuff), 0) < 0)
-	{
-		perror("[Server]: could not receive data.");
-		exit(7);
-	}
-	printf("[Client]: %s \n", recvBuff);
-
-
-	// Check match.
-	memset(sendBuff, '\0', sizeof(sendBuff));
-
-	// Float value
-	if(randType[0] == 'f') 
-	{
-		sscanf(recvBuff, "%lf ", &dCmprResult);
-		dDelta = (dResult - dCmprResult);
-		if(dDelta < 0) {
-			dDelta *= -1.0;
+		// Check if random command should execute a float or integer calculation.
+		if(randType[0] == 'f') {
+			dRandNum[0] = randomFloat();
+			dRandNum[1] = randomFloat();
+			isDouble = true;
 		} 
-		if (dDelta <= dEpsilon)
+		else {
+			iRandNum[0] = randomInt();
+			iRandNum[1] = randomInt();
+		}
+
+
+		// Float calculation
+		if(isDouble)
 		{
-			// Send OK to client.
-			if(send(connfd, "OK", 2, 0) < 0)
+			// Perform calculation.
+		 	dResult = calcResult(dRandNum[0], dRandNum[1], randType);
+		  	
+		  	// Print result.
+	 	 	printf("[Server]: %s %8.8g %8.8g = %8.8g \n", randType, dRandNum[0], dRandNum[1], dResult);
+
+	 	 	// Store calculation data in sendBuffer.
+	 	 	sprintf(sendBuff, "%s %8.8g %8.8g = %8.8g \n",randType, dRandNum[0], dRandNum[1], dResult);
+	  	}
+	  	// Integer calculation
+	  	else {
+			// Perform calculation.
+			iResult = calcResult(iRandNum[0], iRandNum[1], randType);
+
+			// Print result.
+	    	printf("[Server]: %s %d %d = %d \n",randType, iRandNum[0], iRandNum[1], iResult);
+
+	    	// Store calculation data in sendBuffer.
+	    	sprintf(sendBuff, "%s %d %d = %d \n",randType, iRandNum[0], iRandNum[1], iResult);
+		}
+
+
+		// Send the calculation information to the client.
+		if(send(connfd, sendBuff, sizeof(sendBuff), 0) < 0)
+		{
+			perror("[Server]: could not write to socket.");
+			exit(6);
+		}
+
+		// ACK
+		if(recv(connfd, recvBuff, sizeof(recvBuff), 0) < 0)
+		{
+			perror("[Client]: could not read from socket.");
+			exit(3);
+		}
+		printf("[Client]: %s\n", recvBuff);
+		memset(recvBuff, '\0', sizeof(recvBuff));
+
+
+		// Receive calculation performed by client.
+		if(recv(connfd, recvBuff, sizeof(recvBuff), 0) < 0)
+		{
+			perror("[Server]: could not receive data.");
+			exit(7);
+		}
+		printf("[Client]: %s \n", recvBuff);
+
+
+		// Check match.
+		memset(sendBuff, '\0', sizeof(sendBuff));
+
+		// Float value
+		if(randType[0] == 'f') 
+		{
+			sscanf(recvBuff, "%lf ", &dCmprResult);
+			dDelta = (dResult - dCmprResult);
+			if(dDelta < 0) {
+				dDelta *= -1.0;
+			} 
+			if (dDelta <= dEpsilon)
 			{
-				perror("[Server]: could not write to socket.");
-				exit(8);
+				// Send OK to client.
+				if(send(connfd, "OK", 2, 0) < 0)
+				{
+					perror("[Server]: could not write to socket.");
+					exit(8);
+				}
+			} 
+			else if(dDelta > dEpsilon)
+			{
+				// Send "Did not match" to client.
+				if(send(connfd, "ERROR", 5, 0) < 0)
+				{
+					perror("[Server]: could not write to socket.");
+					exit(9);
+				}
 			}
+
 		} 
-		else if(dDelta > dEpsilon)
+		// Integer value
+		else
 		{
-			// Send "Did not match" to client.
-			if(send(connfd, "ERROR", 5, 0) < 0)
+			sscanf(recvBuff, "%d", &iCmprResult);
+			if(iResult == iCmprResult) 
 			{
-				perror("[Server]: could not write to socket.");
-				exit(9);
+				// Send OK to client.
+				if(send(connfd, "OK", 2, 0) < 0)
+				{
+					perror("[Server]: could not write to socket.");
+					exit(10);
+				}
+			} 
+			else 
+			{
+				// Send "Did not match" to client.
+				if(send(connfd, "ERROR", 5, 0) < 0)
+				{
+					perror("[Server]: could not write to socket.");
+					exit(11);
+				}
 			}
 		}
 
-	} 
-	// Integer value
-	else
-	{
-		sscanf(recvBuff, "%d", &iCmprResult);
-		if(iResult == iCmprResult) 
-		{
-			// Send OK to client.
-			if(send(connfd, "OK", 2, 0) < 0)
-			{
-				perror("[Server]: could not write to socket.");
-				exit(10);
-			}
-		} 
-		else 
-		{
-			// Send "Did not match" to client.
-			if(send(connfd, "ERROR", 5, 0) < 0)
-			{
-				perror("[Server]: could not write to socket.");
-				exit(11);
-			}
-		}
+			// Disconnect current client.
+			printf("[Server]: communication process complete.\n");
+			printf("[Server]: client %s:%d disconnected.\n", inet_ntoa(clientAddr.sin_addr), clientAddr.sin_port);
+			printf("[Server]: waiting for new connection on port: %i...\n\n", SERVER_PORT);
+
+			// Close socket.
+			
+
+			memset(sendBuff, '\0', sizeof(sendBuff));
+			memset(recvBuff, '\0', sizeof(recvBuff));
 	}
 
-	
+
+
 
 	return 0;
 }
