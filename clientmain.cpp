@@ -27,6 +27,10 @@ int main(int argc, char* argv[])
 	char sendBuff[256];
 	char recvBuff[256];
 
+	// Clear buffers.
+	memset(sendBuff, '\0', sizeof(sendBuff));
+	memset(recvBuff, '\0', sizeof(recvBuff));
+
 	if(argc != 2) 
 	{
 		fprintf(stderr,"ERROR, no port provided\n");
@@ -35,27 +39,39 @@ int main(int argc, char* argv[])
 	}
 
 	if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{
 		perror("[Client]: could not create socket.");
-	else
-		printf("[Client]: socket was created.\n");
+		exit(1);
+	}
+	printf("[Client]: socket was created.\n");
 
-	
-	memset(&serverAddr, '\0', sizeof(serverAddr));
 
 	// Socket address information needed for binding.
+	memset(&serverAddr, '\0', sizeof(serverAddr));
 	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(atoi(argv[1]));										// Convert to network standard order.
+	serverAddr.sin_port = htons(atoi(argv[1]));		// Convert to network standard order.
 
 
 	if(connect(sockfd, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0)
+	{
 		perror("[Client]: could not connect to server.");
-	else
-		printf("[Client]: successfully connected to the server.\n\n");
+		exit(2);
+	}
+	printf("[Client]: successfully connected to the server.\n");
 
 	if(recv(sockfd, recvBuff, sizeof(recvBuff), 0) < 0)
+	{
 			perror("[Client]: could not read from socket.");
-		else
-			printf("[Server]: %s\n", recvBuff);
+			exit(3);
+	}
+	printf("[Server]: %s\n", recvBuff);
+	
+	// ACK
+	if(send(sockfd, "OK", 2, 0) < 0)
+	{
+		perror("[Server]: could not write to socket.");
+		exit(8);
+	}
 
 //==================================================================================================================================================
 //														S E N D   A N D   R E C E I V E
@@ -67,45 +83,74 @@ int main(int argc, char* argv[])
 
 	// Variables regarding calculator.
   	char command[10];
-	int iValue[2], iResult;
-	double dValue[2], dResult;
+	int iValue[2] {0}, 
+		iResult = 0;
+	double 	dValue[2] {0.0},
+			dResult = 0.0;
 
 	// Receive calculations from server.
 	if(recv(sockfd, recvBuff, sizeof(recvBuff), 0) < 0)
+	{
 			perror("[Client]: could not read from socket.");
-		else
-			printf("[Server]: %s \n", recvBuff);
+			exit(4);
+	}
+	printf("[Server]: %s", recvBuff);
 
+	// ACK
+	if(send(sockfd, "OK", 2, 0) < 0)
+	{
+		perror("[Server]: could not write to socket.");
+		exit(8);
+	}
+	memset(sendBuff, '\0', sizeof(sendBuff));
 
 
 	// Check command for float or integer calculation.
-	// Float calculation	
-	if(recvBuff[0] == 'f') {
+	// Float calculation.	
+	if(recvBuff[0] == 'f') 
+	{
 		// Scan and store data.
-		sscanf(recvBuff,"%s %lf %lf", command, &dValue[0], &dValue[1]);
+		sscanf(recvBuff, "%s%lf%lf ", command, &dValue[0], &dValue[1]);
 
 		// Perform calculation.
 		dResult = calcResult(dValue[0], dValue[1], command);
 		
 		// Print result.
-		sprintf(sendBuff, "%s %8.8g %8.8g = %8.8g \n",command, dValue[0], dValue[1], dResult);
+		printf("[Client]: %s %8.8g %8.8g = %8.8g \n", command, dValue[0], dValue[1], dResult);
+
+		// Store result in sendBuff.
+		sprintf(sendBuff, "%lf", dResult);
 	} 
-	// Integer calculation
+	// Integer calculation.
 	else {
 		// Scan and store data.
-		scanf(recvBuff,"%s %d %d", command, &iValue[0], &iValue[1]);
+		sscanf(recvBuff, "%s%d%d ", command, &iValue[0], &iValue[1]);
 
 		// Perform calculation.
 		iResult = calcResult(iValue[0], iValue[1], command);
 
 		// Print result.
-		sprintf(sendBuff, "%s %d %d = %d \n",command, iValue[0], iValue[1], iResult);
+		printf("[Client]: %s %d %d = %d \n", command, iValue[0], iValue[1], iResult);
+
+		// Store result in sendBuff.
+		sprintf(sendBuff, "%d", iResult);
 	}
 
-
-	// Send the calculation back to the client.
+	// Send the result back to the client.
 	if(send(sockfd, sendBuff, sizeof(sendBuff), 0) < 0)
-		perror("[Server]: could not write to socket.");
+	{
+		perror("[Client]: could not write to socket.");
+		exit(5);
+	}
+
+	memset(recvBuff, '\0', sizeof(recvBuff));
+	if(recv(sockfd, recvBuff, sizeof(recvBuff), 0) < 0)
+	{
+		perror("[Client]: could not read from socket.");
+		exit(6);
+	}
+	else
+		printf("[Server]: %s \n", recvBuff);
 
 
 	return 0;
