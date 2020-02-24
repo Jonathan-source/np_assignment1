@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     if(argc != 2) 
 	{
 		fprintf(stderr,"ERROR, no port provided\n");
-		printf("\nManual: %s <Server Port> \n", argv[0]);
+		printf("Manual: %s <Server Port> \n", argv[0]);
 		return -1;
 	}
 	int SERVER_PORT = atoi(argv[1]);
