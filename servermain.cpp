@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 
 	initCalcLib();
 
-		// Variables regarding calculation.
+		// Variables for calculation.
 		char *randType = randomType();
 		int iRandNum[2]{0},
 			iResult = 0,
@@ -279,7 +279,10 @@ int main(int argc, char *argv[])
 			printf("[Server]: waiting for new connection on port: %i...\n\n", SERVER_PORT);
 
 			// Close socket.
-			
+			// close(socketfd);
+			// close();
+			// close(connfd);
+			// ?????
 
 			memset(sendBuff, '\0', sizeof(sendBuff));
 			memset(recvBuff, '\0', sizeof(recvBuff));
