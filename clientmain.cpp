@@ -13,7 +13,9 @@
 
 int calcResult(const int &value1, const int &value2, const char *type);
 double calcResult(const double &value1, const double &value2, const char *type);
-void perror(char const * msg);
+void perror(char const * msg){
+	exit(EXIT_FAILURE);
+}
 
 int main(int argc, char* argv[])
 {
@@ -31,46 +33,42 @@ int main(int argc, char* argv[])
 	memset(sendBuff, '\0', sizeof(sendBuff));
 	memset(recvBuff, '\0', sizeof(recvBuff));
 
-	if(argc != 2) 
+	if(argc != 3) 
 	{
-		fprintf(stderr,"ERROR, no port provided\n");
-		printf("Manual: %s <Server Port> \n", argv[0]);
-		return -1;
+		fprintf(stderr,"ERROR, incorrect arguments.\n");
+		printf("Manual: %s <IP Address> <Server Port> \n", argv[0]);
+		return EXIT_FAILURE;
 	}
 
 	if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
-		perror("[Client]: could not create socket.");
-		exit(1);
+		perror("could not create socket.");
 	}
-	printf("[Client]: socket was created.\n");
+	printf("Socket was created.\n");
 
 
 	// Socket address information needed for binding.
 	memset(&serverAddr, '\0', sizeof(serverAddr));
 	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(atoi(argv[1]));		// Convert to network standard order.
-
+	serverAddr.sin_port = htons(atoi(argv[2]));			// Convert to network standard order.
+	serverAddr.sin_addr.s_addr = inet_addr(argv[1]);
 
 	if(connect(sockfd, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0)
 	{
-		perror("[Client]: could not connect to server.");
-		exit(2);
+		perror("could not connect to server.");
 	}
-	printf("[Client]: successfully connected to the server.\n");
+	printf("Successfully connected to the server.\n");
 
 	if(recv(sockfd, recvBuff, sizeof(recvBuff), 0) < 0)
 	{
-			perror("[Client]: could not read from socket.");
-			exit(3);
+			perror("could not read from socket.");
 	}
-	printf("[Server]: %s\n", recvBuff);
+	printf("%s\n", recvBuff);
 	
 	// ACK
-	if(send(sockfd, "OK", 2, 0) < 0)
+	if(send(sockfd, "OK\n", 2, 0) < 0)
 	{
-		perror("[Server]: could not write to socket.");
-		exit(8);
+		perror("could not write to socket.");
 	}
 
 //==================================================================================================================================================
@@ -91,18 +89,9 @@ int main(int argc, char* argv[])
 	// Receive calculations from server.
 	if(recv(sockfd, recvBuff, sizeof(recvBuff), 0) < 0)
 	{
-			perror("[Client]: could not read from socket.");
-			exit(4);
+			perror("could not read from socket.");
 	}
-	printf("[Server]: %s", recvBuff);
-
-	// ACK
-	if(send(sockfd, "OK", 2, 0) < 0)
-	{
-		perror("[Server]: could not write to socket.");
-		exit(8);
-	}
-	memset(sendBuff, '\0', sizeof(sendBuff));
+	printf("%s\n", recvBuff);
 
 
 	// Check command for float or integer calculation.
@@ -110,13 +99,13 @@ int main(int argc, char* argv[])
 	if(recvBuff[0] == 'f') 
 	{
 		// Scan and store data.
-		sscanf(recvBuff, "%s%lf%lf ", command, &dValue[0], &dValue[1]);
+		sscanf(recvBuff, "%s%lf%lf", command, &dValue[0], &dValue[1]);
 
 		// Perform calculation.
 		dResult = calcResult(dValue[0], dValue[1], command);
 		
 		// Print result.
-		printf("[Client]: %s %8.8g %8.8g = %8.8g \n", command, dValue[0], dValue[1], dResult);
+		printf("%8.8g\n", dResult);
 
 		// Store result in sendBuff.
 		sprintf(sendBuff, "%lf", dResult);
@@ -124,33 +113,30 @@ int main(int argc, char* argv[])
 	// Integer calculation.
 	else {
 		// Scan and store data.
-		sscanf(recvBuff, "%s%d%d ", command, &iValue[0], &iValue[1]);
+		sscanf(recvBuff, "%s%d%d", command, &iValue[0], &iValue[1]);
 
 		// Perform calculation.
 		iResult = calcResult(iValue[0], iValue[1], command);
 
 		// Print result.
-		printf("[Client]: %s %d %d = %d \n", command, iValue[0], iValue[1], iResult);
+		printf("%d\n", iResult);
 
 		// Store result in sendBuff.
 		sprintf(sendBuff, "%d", iResult);
 	}
 
 	// Send the result back to the client.
-	if(send(sockfd, sendBuff, sizeof(sendBuff), 0) < 0)
+	if(send(sockfd, sendBuff, strlen(sendBuff), 0) < 0)
 	{
-		perror("[Client]: could not write to socket.");
-		exit(5);
+		perror("could not write to socket.");
 	}
 
 	memset(recvBuff, '\0', sizeof(recvBuff));
 	if(recv(sockfd, recvBuff, sizeof(recvBuff), 0) < 0)
 	{
-		perror("[Client]: could not read from socket.");
-		exit(6);
+		perror("could not read from socket.");
 	}
-	else
-		printf("[Server]: %s \n", recvBuff);
+	printf("%s\n", recvBuff);
 
 
 	return 0;
